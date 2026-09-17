@@ -53,6 +53,28 @@ def formatar_moeda(v: float) -> str:
     return f"R$ {v:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+def formatar_moeda_compacta(v: float) -> str:
+    """Formato executivo para KPIs de destaque: abrevia em Mil/Mi/Bi para
+    caber no card sem truncar (ex.: 'R$ 4.163.234,50' -> 'R$ 4,16 Mi').
+    Valores abaixo de R$ 1.000 continuam no formato completo — abreviar um
+    valor pequeno tira precisão sem ganhar espaço."""
+    sinal = "-" if v < 0 else ""
+    v_abs = abs(v)
+    # Arredondamento pode "estourar" a casa (ex.: 999.999 -> 1.000,0 Mil em
+    # vez de 1,00 Mi) — escolhe a unidade pelo valor já arredondado na casa
+    # de cima, não pelo valor bruto, para nunca mostrar "1.000 Mil"/"1.000 Mi".
+    if round(v_abs / 1_000_000_000, 2) >= 1:
+        texto = f"{v_abs / 1_000_000_000:,.2f} Bi"
+    elif round(v_abs / 1_000_000, 2) >= 1:
+        texto = f"{v_abs / 1_000_000:,.2f} Mi"
+    elif round(v_abs / 1_000, 1) >= 1:
+        texto = f"{v_abs / 1_000:,.1f} Mil"
+    else:
+        return formatar_moeda(v)
+    texto = texto.replace(",", "_").replace(".", ",").replace("_", ".")
+    return f"{sinal}R$ {texto}"
+
+
 def formatar_pct(v: float) -> str:
     return f"{v * 100:.1f}%"
 
@@ -206,17 +228,21 @@ with tab_geral:
     n_atrasados = f_periodo.loc[f_periodo["status"] == config.STATUS_ATRASADO].shape[0]
 
     k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Faturamento Realizado", formatar_moeda(faturamento_realizado))
+    k1.metric("Faturamento Realizado", formatar_moeda_compacta(faturamento_realizado),
+              help=f"Valor exato: {formatar_moeda(faturamento_realizado)}")
     k2.metric(
         "Atingimento da Meta",
         formatar_pct(atingimento) if atingimento is not None else "—",
         help=f"Meta considerada: {formatar_moeda(meta_total)} (soma dos teatros filtrados, aba RESUMO)",
     )
-    k3.metric("Saldo em Aberto", formatar_moeda(saldo_em_aberto),
-              delta=f"{n_atrasados} contrato(s) em atraso" if n_atrasados else None, delta_color="inverse")
-    k4.metric("Projeção de Vendas Futuras", formatar_moeda(projecao_futura),
-              help="Soma do saldo em aberto cuja previsão de pagamento é hoje ou no futuro")
-    k5.metric("Ticket Médio (pago)", formatar_moeda(ticket_medio))
+    k3.metric("Saldo em Aberto", formatar_moeda_compacta(saldo_em_aberto),
+              delta=f"{n_atrasados} contrato(s) em atraso" if n_atrasados else None, delta_color="inverse",
+              help=f"Valor exato: {formatar_moeda(saldo_em_aberto)}")
+    k4.metric("Projeção de Vendas Futuras", formatar_moeda_compacta(projecao_futura),
+              help=f"Soma do saldo em aberto cuja previsão de pagamento é hoje ou no futuro. "
+                   f"Valor exato: {formatar_moeda(projecao_futura)}")
+    k5.metric("Ticket Médio (pago)", formatar_moeda_compacta(ticket_medio),
+              help=f"Valor exato: {formatar_moeda(ticket_medio)}")
 
     st.divider()
 
