@@ -342,10 +342,13 @@ with tab_geral:
     if serie.empty:
         st.info("Sem dados suficientes para a evolução temporal com os filtros atuais.")
     else:
+        # Rótulo "mai/26" em vez de "2026-05" — mesmo formato usado no eixo X
+        # do gráfico equivalente no Artifact HTML (monthLabel()).
+        eixo_x = serie["mes"].map(rotulo_mes)
         fig_temp = go.Figure()
-        fig_temp.add_scatter(x=serie["mes"], y=serie["Realizado"], mode="lines+markers", name="Realizado",
+        fig_temp.add_scatter(x=eixo_x, y=serie["Realizado"], mode="lines+markers", name="Realizado",
                               line=dict(color=VERDE, width=3))
-        fig_temp.add_scatter(x=serie["mes"], y=serie["Projetado"], mode="lines+markers", name="Projetado",
+        fig_temp.add_scatter(x=eixo_x, y=serie["Projetado"], mode="lines+markers", name="Projetado",
                               line=dict(color=AMARELO, width=3, dash="dash"))
         fig_temp.update_layout(yaxis_title="R$", xaxis_title="Mês", height=420)
         st.plotly_chart(fig_temp, use_container_width=True)
