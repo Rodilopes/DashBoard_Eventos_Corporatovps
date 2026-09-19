@@ -360,7 +360,20 @@ def _classificar_status_grupo(status: str) -> str:
 
 def carregar_metas(caminho_teste: str | None = None) -> pd.DataFrame:
     raw = _ler_csv_teste_ou_remoto(config.SHEET_RESUMO, caminho_teste)
-    df = raw.iloc[config.RESUMO_HEADER_ROWS:].reset_index(drop=True)
+
+    # Mesma lógica de detecção do início da tabela usada no dashboard HTML
+    # (processResumo(): procura um rótulo que CONTENHA "espaços", nunca
+    # igualdade exata) — mais robusta que um offset fixo de linhas caso o
+    # cabeçalho da aba RESUMO ganhe/perca uma linha no futuro. Mantém
+    # RESUMO_HEADER_ROWS como ponto de partida da busca, não como posição fixa.
+    inicio = None
+    for idx in range(config.RESUMO_HEADER_ROWS - 1, len(raw)):
+        rotulo = normalizar_texto(raw.iloc[idx][config.RESUMO_COL_ESPACO])
+        if "espaços" in rotulo.lower() or "espacos" in rotulo.lower():
+            inicio = idx + 1
+            break
+    df = raw.iloc[inicio:].reset_index(drop=True) if inicio is not None \
+        else raw.iloc[config.RESUMO_HEADER_ROWS:].reset_index(drop=True)
 
     registros = []
     for _, row in df.iterrows():
