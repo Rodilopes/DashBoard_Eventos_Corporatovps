@@ -227,6 +227,17 @@ with tab_geral:
 
     n_atrasados = f_periodo.loc[f_periodo["status"] == config.STATUS_ATRASADO].shape[0]
 
+    # Quantas parcelas "Em aberto" já venceram pela DATA de previsão (distinto
+    # de n_atrasados acima, que conta pelo STATUS manual "EM ATRASO" — os dois
+    # podem divergir quando alguém marca o status manualmente antes da data
+    # vencer, o que a aba "Consistência de Dados" já sinaliza). Quando esse
+    # número é zero, Saldo em Aberto e Projeção de Vendas Futuras coincidem
+    # exatamente — não é bug, é o dado: nenhuma parcela em aberto está
+    # vencida por data hoje. Ver mesma lógica/comentário no Artifact HTML.
+    n_vencidos_por_data = f_periodo.loc[
+        (f_periodo["status_grupo"] == "Em aberto") & (f_periodo["previsao_pagamento"] < hoje)
+    ].shape[0]
+
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Faturamento Realizado", formatar_moeda_compacta(faturamento_realizado),
               help=f"Valor exato: {formatar_moeda(faturamento_realizado)}")
@@ -240,9 +251,18 @@ with tab_geral:
               help=f"Valor exato: {formatar_moeda(saldo_em_aberto)}")
     k4.metric("Projeção de Vendas Futuras", formatar_moeda_compacta(projecao_futura),
               help=f"Soma do saldo em aberto cuja previsão de pagamento é hoje ou no futuro. "
-                   f"Valor exato: {formatar_moeda(projecao_futura)}")
+                   f"Valor exato: {formatar_moeda(projecao_futura)}"
+                   + (" Coincide com o Saldo em Aberto porque nenhuma parcela em aberto está "
+                      "vencida por data hoje." if n_vencidos_por_data == 0 and saldo_em_aberto > 0 else ""))
     k5.metric("Ticket Médio (pago)", formatar_moeda_compacta(ticket_medio),
               help=f"Valor exato: {formatar_moeda(ticket_medio)}")
+
+    if n_vencidos_por_data == 0 and saldo_em_aberto > 0:
+        st.caption(
+            "ℹ️ Saldo em Aberto = Projeção de Vendas Futuras: nenhuma parcela em aberto tem "
+            "previsão de pagamento vencida hoje (mesmo que algum contrato esteja com status "
+            "manual \"EM ATRASO\" — ver aba Consistência de Dados)."
+        )
 
     st.divider()
 
